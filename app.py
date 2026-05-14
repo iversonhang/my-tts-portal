@@ -54,7 +54,7 @@ def process_tts(text_input, config, lang_label):
         try:
             # Requesting audio generation from the Gemini TTS model
             response = client.models.generate_content(
-                model="gemini-2.5-flash-preview-tts",  # <-- Swapped from 3.1-flash-tts-preview
+                model="gemini-3.1-flash-tts-preview",  # <-- Swapped from 3.1-flash-tts-preview
                 contents=full_prompt,
                 config=types.GenerateContentConfig(
                     response_modalities=["AUDIO"],
