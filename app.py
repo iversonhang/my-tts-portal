@@ -17,21 +17,24 @@ except Exception as e:
     st.error("Failed to initialize Gemini Client. Please ensure your GEMINI_API_KEY environment variable is set in your Streamlit Secrets.")
     st.stop()
 
-# 3. Setup Language Configurations
+# 3. Setup Language Configurations with Explicit BCP-47 Language Codes
 LANGUAGE_CONFIGS = {
     "English (Global/US)": {
         "code": "en",
-        "prompt_prefix": "[Language: English] Please read the following text naturally and clearly: ",
+        "lang_code": "en-US",
+        "prompt_prefix": "Please read the following text naturally, clearly, and with an accurate English accent: ",
         "voice": "Aoede"
     },
     "Mandarin (普通话)": {
         "code": "zh-CN",
-        "prompt_prefix": "[Language: Mandarin Chinese] 请用标准普通话清晰、自然地朗读以下文字：",
+        "lang_code": "zh-CN",
+        "prompt_prefix": "请用标准、地道的普通话清晰自然地朗读以下文字：",
         "voice": "Puck"
     },
     "Cantonese (粵語)": {
         "code": "zh-HK",
-        "prompt_prefix": "[Language: Cantonese Chinese] 請用標準粵語及地道發音朗讀以下文字：",
+        "lang_code": "zh-HK",
+        "prompt_prefix": "請用標準、純正的廣東話（粵語）地道發音朗讀以下文字：",
         "voice": "Puck"
     }
 }
@@ -62,6 +65,8 @@ if st.button("Synthesize Audio", type="primary", use_container_width=True):
                     config=types.GenerateContentConfig(
                         response_modalities=["AUDIO"],
                         speech_config=types.SpeechConfig(
+                            # FIX: Pass the required BCP-47 language code to force the native engine accent
+                            language_code=config["lang_code"],
                             voice_config=types.VoiceConfig(
                                 prebuilt_voice_config=types.PrebuiltVoiceConfig(
                                     voice_name=config["voice"]
@@ -82,7 +87,7 @@ if st.button("Synthesize Audio", type="primary", use_container_width=True):
                 if not raw_pcm_bytes:
                     st.error("No audio data was returned by the Gemini API. Please verify the input text style.")
                 else:
-                    # FIX: Wrap raw 24kHz, 16-bit, Mono PCM bytes into a standard WAV header container
+                    # Wrap raw 24kHz, 16-bit, Mono PCM bytes into a standard WAV header container
                     wav_buffer = io.BytesIO()
                     with wave.open(wav_buffer, 'wb') as wav_file:
                         wav_file.setnchannels(1)      # Mono
@@ -92,9 +97,9 @@ if st.button("Synthesize Audio", type="primary", use_container_width=True):
                     
                     playable_wav_data = wav_buffer.getvalue()
 
-                    st.success("Audio Generated Successfully!")
+                    st.success(f"Audio Generated Successfully in {selected_lang_name}!")
                     
-                    # Native Streamlit Audio Player (WAV format is perfectly handled by all modern web browsers)
+                    # Native Streamlit Audio Player
                     st.audio(playable_wav_data, format="audio/wav")
                     
                     # Native Streamlit Download Button
