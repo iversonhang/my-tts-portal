@@ -60,7 +60,7 @@ if st.button("Synthesize Audio", type="primary", use_container_width=True):
             try:
                 # Requesting audio generation from the specific Gemini TTS model
                 response = client.models.generate_content(
-                    model="gemini-3.1-flash-tts-preview",
+                    model="gemini-2.5-flash-preview-tts",  # <-- Swapped from 3.1-flash-tts-preview
                     contents=full_prompt,
                     config=types.GenerateContentConfig(
                         response_modalities=["AUDIO"],
