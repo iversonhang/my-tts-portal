@@ -1,5 +1,6 @@
 import streamlit as st
-import base64
+import io
+import wave
 from google import genai
 from google.genai import types
 
@@ -7,7 +8,7 @@ from google.genai import types
 st.set_page_config(page_title="Gemini TTS Portal", page_icon="🎙️", layout="centered")
 
 st.title("🎙️ Gemini Multilingual TTS Portal")
-st.caption("Convert text to high-fidelity speech natively using Gemini AI (Supports Python 3.13+).")
+st.caption("Convert text to high-fidelity, universally playable audio using Gemini AI.")
 
 # 2. Initialize Gemini Client safely
 try:
@@ -70,28 +71,38 @@ if st.button("Synthesize Audio", type="primary", use_container_width=True):
                     )
                 )
                 
-                # Extract inline audio binary data
-                audio_bytes = None
+                # Extract inline raw PCM audio binary data
+                raw_pcm_bytes = None
                 if response.candidates and response.candidates[0].content.parts:
                     for part in response.candidates[0].content.parts:
                         if part.inline_data:
-                            audio_bytes = part.inline_data.data
+                            raw_pcm_bytes = part.inline_data.data
                             break
                 
-                if not audio_bytes:
+                if not raw_pcm_bytes:
                     st.error("No audio data was returned by the Gemini API. Please verify the input text style.")
                 else:
+                    # FIX: Wrap raw 24kHz, 16-bit, Mono PCM bytes into a standard WAV header container
+                    wav_buffer = io.BytesIO()
+                    with wave.open(wav_buffer, 'wb') as wav_file:
+                        wav_file.setnchannels(1)      # Mono
+                        wav_file.setsampwidth(2)      # 16-bit (2 bytes per sample)
+                        wav_file.setframerate(24000)  # 24kHz
+                        wav_file.writeframes(raw_pcm_bytes)
+                    
+                    playable_wav_data = wav_buffer.getvalue()
+
                     st.success("Audio Generated Successfully!")
                     
-                    # Native Streamlit Audio Player (Gemini natively outputs high-quality compressed audio)
-                    st.audio(audio_bytes, format="audio/mp3")
+                    # Native Streamlit Audio Player (WAV format is perfectly handled by all modern web browsers)
+                    st.audio(playable_wav_data, format="audio/wav")
                     
                     # Native Streamlit Download Button
                     st.download_button(
-                        label="📥 Download Audio File",
-                        data=audio_bytes,
-                        file_name=f"gemini_speech_{config['code']}.mp3",
-                        mime="audio/mpeg",
+                        label="📥 Download Audio File (WAV)",
+                        data=playable_wav_data,
+                        file_name=f"gemini_speech_{config['code']}.wav",
+                        mime="audio/wav",
                         use_container_width=True
                     )
                     
