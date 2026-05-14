@@ -1,22 +1,19 @@
 import streamlit as st
-import io
-import os
+import base64
 from google import genai
 from google.genai import types
-from pydub import AudioSegment
 
 # 1. Page Configuration & Styling
 st.set_page_config(page_title="Gemini TTS Portal", page_icon="🎙️", layout="centered")
 
 st.title("🎙️ Gemini Multilingual TTS Portal")
-st.caption("Convert text to high-fidelity MP3 speech natively using Gemini AI.")
+st.caption("Convert text to high-fidelity speech natively using Gemini AI (Supports Python 3.13+).")
 
 # 2. Initialize Gemini Client safely
-# It automatically picks up the GEMINI_API_KEY environment variable
 try:
     client = genai.Client()
 except Exception as e:
-    st.error("Failed to initialize Gemini Client. Please ensure your GEMINI_API_KEY environment variable is set.")
+    st.error("Failed to initialize Gemini Client. Please ensure your GEMINI_API_KEY environment variable is set in your Streamlit Secrets.")
     st.stop()
 
 # 3. Setup Language Configurations
@@ -49,7 +46,7 @@ text_input = st.text_area(
 )
 
 # 5. Core Processing Pipeline
-if st.button("Synthesize to MP3", type="primary", use_container_width=True):
+if st.button("Synthesize Audio", type="primary", use_container_width=True):
     if not text_input.strip():
         st.warning("Please enter some text before synthesizing.")
     else:
@@ -57,9 +54,9 @@ if st.button("Synthesize to MP3", type="primary", use_container_width=True):
             full_prompt = f"{config['prompt_prefix']}\n\n{text_input}"
             
             try:
-                # Requesting audio generation from the Gemini TTS capable model
+                # Requesting audio generation from the specific Gemini TTS model
                 response = client.models.generate_content(
-                    model="gemini-3.1-flash",
+                    model="gemini-3.1-flash-tts-preview",
                     contents=full_prompt,
                     config=types.GenerateContentConfig(
                         response_modalities=["AUDIO"],
@@ -75,32 +72,24 @@ if st.button("Synthesize to MP3", type="primary", use_container_width=True):
                 
                 # Extract inline audio binary data
                 audio_bytes = None
-                for part in response.candidates[0].content.parts:
-                    if part.inline_data:
-                        audio_bytes = part.inline_data.data
-                        break
+                if response.candidates and response.candidates[0].content.parts:
+                    for part in response.candidates[0].content.parts:
+                        if part.inline_data:
+                            audio_bytes = part.inline_data.data
+                            break
                 
                 if not audio_bytes:
-                    st.error("No audio data was returned by the Gemini API.")
+                    st.error("No audio data was returned by the Gemini API. Please verify the input text style.")
                 else:
-                    # Convert raw/wav response data to high-quality MP3 using Pydub
-                    wav_io = io.BytesIO(audio_bytes)
-                    audio_segment = AudioSegment.from_file(wav_io)
-                    
-                    mp3_io = io.BytesIO()
-                    audio_segment.export(mp3_io, format="mp3", bitrate="192k")
-                    mp3_data = mp3_io.getvalue()
-
-                    # 6. Render Output Audio Player and Download Options
                     st.success("Audio Generated Successfully!")
                     
-                    # Native Streamlit Audio Player
-                    st.audio(mp3_data, format="audio/mp3")
+                    # Native Streamlit Audio Player (Gemini natively outputs high-quality compressed audio)
+                    st.audio(audio_bytes, format="audio/mp3")
                     
                     # Native Streamlit Download Button
                     st.download_button(
-                        label="📥 Download MP3 File",
-                        data=mp3_data,
+                        label="📥 Download Audio File",
+                        data=audio_bytes,
                         file_name=f"gemini_speech_{config['code']}.mp3",
                         mime="audio/mpeg",
                         use_container_width=True
